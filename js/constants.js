@@ -91,18 +91,18 @@ const PIECE_VALUES = {
     [PIECE_TYPES.PAWN]: 100
 };
 
-// AI搜索深度（按难度级别）
+// AI搜索深度（按难度级别）- 减少搜索深度，提高响应速度
 const AI_DIFFICULTY = {
     EASY: {
-        depth: 2,
+        depth: 1,         // 降低搜索深度
         randomFactor: 0.3  // 更高的随机因子使AI有时会做出次优选择
     },
     MEDIUM: {
-        depth: 3,
+        depth: 2,         // 降低搜索深度
         randomFactor: 0.15
     },
     HARD: {
-        depth: 4,
+        depth: 3,         // 降低搜索深度
         randomFactor: 0.05
     }
 };
@@ -124,3 +124,6 @@ const GAME_STATUS = {
     BLACK_WIN: 'black_win',
     DRAW: 'draw'
 };
+
+// 缓存设置
+const CACHE_ENABLED = true; // 启用缓存来提高性能
