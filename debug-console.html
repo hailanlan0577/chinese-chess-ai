@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国象棋 - 调试控制台</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .debug-container {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .game-container {
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            overflow: auto;
+        }
+        .console-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+        }
+        .console-output {
+            flex: 1;
+            background-color: #000;
+            color: #fff;
+            font-family: monospace;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-bottom: 10px;
+        }
+        .console-input {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .console-input input {
+            flex: 1;
+            padding: 8px;
+            font-family: monospace;
+        }
+        .console-input button {
+            margin-left: 5px;
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .debug-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .debug-button {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .clear-button {
+            background-color: #f44336;
+        }
+        .debug-info {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .board {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .warn {
+            color: #FFC107;
+        }
+        .error {
+            color: #F44336;
+        }
+        .debug-tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .debug-tab {
+            padding: 8px 15px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .debug-tab.active {
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+        }
+        .debug-panel {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+        .debug-panel.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>中国象棋 - 调试控制台</h1>
+    
+    <div class="debug-controls">
+        <button id="check-files-btn" class="debug-button">检查文件加载</button>
+        <button id="check-dom-btn" class="debug-button">检查DOM结构</button>
+        <button id="check-board-btn" class="debug-button">检查棋盘状态</button>
+        <button id="test-render-btn" class="debug-button">测试棋盘渲染</button>
+        <button id="clear-console-btn" class="debug-button clear-button">清空控制台</button>
+        <button id="goto-main-btn" class="debug-button" onclick="location.href='index.html'">返回主页</button>
+        <button id="goto-simple-btn" class="debug-button" onclick="location.href='simple.html'">查看简易版</button>
+    </div>
+    
+    <div class="debug-tabs">
+        <div class="debug-tab active" data-tab="game">游戏视图</div>
+        <div class="debug-tab" data-tab="inspector">DOM检查器</div>
+    </div>
+    
+    <div class="debug-container">
+        <div class="debug-panel active" id="game-panel">
+            <div class="game-container">
+                <div class="difficulty-selector">
+                    <span>难度级别:</span>
+                    <button id="easy" class="difficulty-btn">初级</button>
+                    <button id="medium" class="difficulty-btn active">中级</button>
+                    <button id="hard" class="difficulty-btn">高级</button>
+                </div>
+                <button id="restart-btn">重新开始</button>
+                
+                <div class="game-area">
+                    <div id="board" class="board"></div>
+                    <div class="game-info">
+                        <div id="status" class="status">轮到红方</div>
+                        <div id="move-history" class="move-history">
+                            <h3>历史记录</h3>
+                            <div id="moves"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="console-container">
+                <div class="console-output" id="console-output"></div>
+                <div class="console-input">
+                    <input type="text" id="console-input" placeholder="输入JavaScript代码...">
+                    <button id="execute-btn">执行</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="debug-panel" id="inspector-panel">
+            <div class="debug-info" id="dom-inspector">
+                正在加载DOM检查器...
+            </div>
+        </div>
+    </div>
+    
+    <div class="debug-info" id="debug-info">
+        正在加载调试信息...
+    </div>
+    
+    <script>
+        // 自定义控制台
+        const consoleOutput = document.getElementById('console-output');
+        const consoleInput = document.getElementById('console-input');
+        const executeBtn = document.getElementById('execute-btn');
+        const debugInfo = document.getElementById('debug-info');
+        const domInspector = document.getElementById('dom-inspector');
+        
+        // 重写控制台方法
+        const originalConsole = {
+            log: console.log,
+            info: console.info,
+            warn: console.warn,
+            error: console.error
+        };
+        
+        // 将输出添加到自定义控制台
+        function addConsoleOutput(message, type = 'log') {
+            const lineElement = document.createElement('div');
+            lineElement.className = type;
+            
+            const timestamp = new Date().toISOString().substring(11, 23);
+            lineElement.textContent = `[${timestamp}] ${message}`;
+            
+            consoleOutput.appendChild(lineElement);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            
+            // 同时也输出到浏览器控制台
+            originalConsole[type](message);
+        }
+        
+        // 重写控制台方法
+        console.log = function(...args) {
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+            addConsoleOutput(message, 'log');
+            originalConsole.log.apply(console, args);
+        };
+        
+        console.info = function(...args) {
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+            addConsoleOutput(message, 'info');
+            originalConsole.info.apply(console, args);
+        };
+        
+        console.warn = function(...args) {
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+            addConsoleOutput(message, 'warn');
+            originalConsole.warn.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+            addConsoleOutput(message, 'error');
+            originalConsole.error.apply(console, args);
+        };
+        
+        // 执行按钮点击
+        executeBtn.addEventListener('click', function() {
+            const code = consoleInput.value;
+            if (!code) return;
+            
+            addConsoleOutput(`> ${code}`, 'log');
+            
+            try {
+                const result = eval(code);
+                if (result !== undefined) {
+                    addConsoleOutput(`< ${result}`, 'info');
+                }
+            } catch (error) {
+                addConsoleOutput(`错误: ${error.message}`, 'error');
+            }
+            
+            consoleInput.value = '';
+        });
+        
+        // 按下Enter键执行
+        consoleInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                executeBtn.click();
+            }
+        });
+        
+        // 检查文件加载
+        document.getElementById('check-files-btn').addEventListener('click', function() {
+            console.log('---------- 检查文件加载 ----------');
+            
+            const requiredFiles = [
+                { name: 'constants.js', variable: 'PIECE_TYPES' },
+                { name: 'pieces.js', variable: 'Piece' },
+                { name: 'rules.js', variable: 'Rules' },
+                { name: 'board.js', variable: 'Board' },
+                { name: 'ai.js', variable: 'ChessAI' },
+                { name: 'game.js', variable: 'Game' },
+                { name: 'debug.js', variable: 'debug' }
+            ];
+            
+            requiredFiles.forEach(file => {
+                try {
+                    const exists = eval(`typeof ${file.variable} !== 'undefined'`);
+                    console.log(`${file.name}: ${exists ? '已加载' : '未加载'}`);
+                } catch (error) {
+                    console.error(`${file.name}: 未加载或出错 - ${error.message}`);
+                }
+            });
+        });
+        
+        // 检查DOM结构
+        document.getElementById('check-dom-btn').addEventListener('click', function() {
+            console.log('---------- 检查DOM结构 ----------');
+            
+            const boardElement = document.getElementById('board');
+            if (!boardElement) {
+                console.error('错误: 找不到ID为board的元素');
+                return;
+            }
+            
+            console.log(`找到board元素: ${boardElement.tagName}, class=${boardElement.className}`);
+            
+            // 检查子元素
+            const gridElement = boardElement.querySelector('.board-grid');
+            if (!gridElement) {
+                console.error('错误: board元素中找不到.board-grid元素');
+            } else {
+                console.log(`找到grid元素: 包含 ${gridElement.children.length} 个子元素`);
+            }
+            
+            // 检查河界元素
+            const riverElement = boardElement.querySelector('.river');
+            if (!riverElement) {
+                console.error('错误: board元素中找不到.river元素');
+            } else {
+                console.log('找到river元素');
+            }
+            
+            // 检查棋子
+            const pieces = boardElement.querySelectorAll('.piece');
+            console.log(`找到 ${pieces.length} 个棋子元素`);
+            
+            // 更新DOM检查器
+            updateDOMInspector();
+        });
+        
+        // 检查棋盘状态
+        document.getElementById('check-board-btn').addEventListener('click', function() {
+            console.log('---------- 检查棋盘状态 ----------');
+            
+            if (!window.game || !window.game.board) {
+                console.error('错误: game或board对象未初始化');
+                return;
+            }
+            
+            const board = window.game.board;
+            console.log(`棋盘尺寸: ${BOARD_SIZE.WIDTH}×${BOARD_SIZE.HEIGHT}`);
+            console.log(`棋子数量: ${board.pieces.length}`);
+            console.log(`棋盘单元格数量: ${board.boardCells.length}`);
+            
+            // 检查是否有棋子但没有显示
+            const visiblePieces = document.querySelectorAll('.piece').length;
+            if (board.pieces.length > 0 && visiblePieces === 0) {
+                console.error('错误: 有棋子数据但没有显示在棋盘上');
+            }
+            
+            // 检查将棋子置于DOM
+            checkPiecesInDOM(board.pieces);
+        });
+        
+        // 测试棋盘渲染
+        document.getElementById('test-render-btn').addEventListener('click', function() {
+            console.log('---------- 测试棋盘渲染 ----------');
+            
+            // 检查现有内容
+            const boardElement = document.getElementById('board');
+            console.log(`Board元素当前内容: ${boardElement.innerHTML.substring(0, 100)}...`);
+            
+            // 清空并重新创建Grid
+            boardElement.innerHTML = '';
+            
+            // 创建棋盘网格
+            const gridElement = document.createElement('div');
+            gridElement.className = 'board-grid';
+            
+            for (let y = 0; y < 10; y++) {
+                for (let x = 0; x < 9; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.style.border = '1px solid #8B4513';
+                    gridElement.appendChild(cell);
+                }
+            }
+            
+            boardElement.appendChild(gridElement);
+            
+            // 添加河界
+            const river = document.createElement('div');
+            river.className = 'river';
+            
+            const leftText = document.createElement('div');
+            leftText.className = 'river-text left';
+            leftText.textContent = '楚河';
+            
+            const rightText = document.createElement('div');
+            rightText.className = 'river-text right';
+            rightText.textContent = '汉界';
+            
+            river.appendChild(leftText);
+            river.appendChild(rightText);
+            boardElement.appendChild(river);
+            
+            console.log('测试棋盘渲染完成，请检查是否显示');
+        });
+        
+        // 检查棋子是否正确放置在DOM中
+        function checkPiecesInDOM(pieces) {
+            if (!pieces || pieces.length === 0) {
+                console.warn('没有棋子数据可供检查');
+                return;
+            }
+            
+            console.log(`检查 ${pieces.length} 个棋子在DOM中的状态...`);
+            
+            pieces.forEach((piece, index) => {
+                if (!piece.element) {
+                    console.error(`棋子 #${index} (${piece.type}, ${piece.side}, [${piece.position}]) 没有关联的DOM元素`);
+                    return;
+                }
+                
+                if (!piece.element.parentNode) {
+                    console.error(`棋子 #${index} (${piece.type}, ${piece.side}, [${piece.position}]) 的DOM元素没有父节点`);
+                    return;
+                }
+                
+                console.log(`棋子 #${index} (${piece.type}, ${piece.side}, [${piece.position}]) 正确放置在DOM中`);
+            });
+        }
+        
+        // 清空控制台
+        document.getElementById('clear-console-btn').addEventListener('click', function() {
+            consoleOutput.innerHTML = '';
+        });
+        
+        // 更新调试信息
+        function updateDebugInfo() {
+            const info = [];
+            
+            info.push(`浏览器: ${navigator.userAgent}`);
+            info.push(`屏幕分辨率: ${window.screen.width}x${window.screen.height}`);
+            info.push(`窗口尺寸: ${window.innerWidth}x${window.innerHeight}`);
+            info.push(`时间: ${new Date().toISOString()}`);
+            
+            if (window.game) {
+                info.push(`游戏状态: ${window.game.status}`);
+                info.push(`当前回合: ${window.game.currentTurn}`);
+                info.push(`AI难度: ${window.game.ai ? window.game.ai.difficulty : '未知'}`);
+            } else {
+                info.push('游戏对象未初始化');
+            }
+            
+            debugInfo.textContent = info.join('\n');
+        }
+        
+        // 更新DOM检查器
+        function updateDOMInspector() {
+            const boardElement = document.getElementById('board');
+            if (!boardElement) {
+                domInspector.textContent = '找不到棋盘元素';
+                return;
+            }
+            
+            const info = [];
+            info.push(`棋盘元素: <div id="${boardElement.id}" class="${boardElement.className}">`);
+            
+            const gridElement = boardElement.querySelector('.board-grid');
+            if (gridElement) {
+                info.push(`  网格元素: <div class="${gridElement.className}">`);
+                info.push(`    子元素数量: ${gridElement.children.length}`);
+                
+                // 显示网格子元素的样本
+                if (gridElement.children.length > 0) {
+                    const sample = gridElement.children[0];
+                    info.push(`    网格单元示例: <div class="${sample.className}" data-x="${sample.dataset.x}" data-y="${sample.dataset.y}">`);
+                }
+            } else {
+                info.push('  找不到网格元素');
+            }
+            
+            const riverElement = boardElement.querySelector('.river');
+            if (riverElement) {
+                info.push(`  河界元素: <div class="${riverElement.className}">`);
+                info.push(`    子元素数量: ${riverElement.children.length}`);
+            } else {
+                info.push('  找不到河界元素');
+            }
+            
+            const pieces = boardElement.querySelectorAll('.piece');
+            info.push(`  棋子元素数量: ${pieces.length}`);
+            
+            // 显示棋子元素的样本
+            if (pieces.length > 0) {
+                const sample = pieces[0];
+                info.push(`    棋子示例: <div class="${sample.className}">${sample.textContent}</div>`);
+            }
+            
+            domInspector.textContent = info.join('\n');
+        }
+        
+        // 标签切换
+        document.querySelectorAll('.debug-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabId = this.dataset.tab;
+                
+                // 更新标签状态
+                document.querySelectorAll('.debug-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // 更新面板显示
+                document.querySelectorAll('.debug-panel').forEach(p => p.classList.remove('active'));
+                document.getElementById(`${tabId}-panel`).classList.add('active');
+                
+                // 如果是检查器标签，更新DOM检查
+                if (tabId === 'inspector') {
+                    updateDOMInspector();
+                }
+            });
+        });
+        
+        // 页面加载完成
+        window.addEventListener('load', function() {
+            // 更新调试信息
+            updateDebugInfo();
+            setInterval(updateDebugInfo, 5000);
+            
+            console.log('调试页面加载完成');
+            console.log('请点击上方的按钮进行各种调试操作');
+            
+            // 尝试初始化游戏
+            try {
+                if (!window.game) {
+                    console.log('正在初始化游戏...');
+                    window.game = new Game();
+                    console.log('游戏初始化成功');
+                }
+            } catch (error) {
+                console.error(`游戏初始化失败: ${error.message}`);
+            }
+        });
+        
+        // 全局错误捕获
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error(`全局错误: ${message} at ${source}:${lineno}:${colno}`);
+            return false;
+        };
+    </script>
+    
+    <!-- 加载游戏文件 -->
+    <script src="js/constants.js"></script>
+    <script src="js/debug.js"></script>
+    <script src="js/pieces.js"></script>
+    <script src="js/rules.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
