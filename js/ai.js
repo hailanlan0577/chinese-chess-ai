@@ -5,6 +5,7 @@ class ChessAI {
     constructor() {
         // 默认使用中等难度
         this.setDifficulty('medium');
+        console.log("AI初始化完成，默认难度：medium");
     }
     
     /**
@@ -25,6 +26,7 @@ class ChessAI {
             default:
                 this.difficulty = AI_DIFFICULTY.MEDIUM;
         }
+        console.log(`AI难度设置为 ${level}，搜索深度: ${this.difficulty.depth}, 随机因子: ${this.difficulty.randomFactor}`);
     }
     
     /**
@@ -34,10 +36,14 @@ class ChessAI {
      * @return {Object} 最佳移动，格式为 {piece, to}
      */
     getBestMove(pieces, side) {
+        console.log(`AI开始分析棋局，棋子数量: ${pieces.length}`);
+        
         // 找出所有可能的移动
         const allMoves = this.getAllPossibleMoves(pieces, side);
+        console.log(`AI可能的移动数量: ${allMoves.length}`);
         
         if (allMoves.length === 0) {
+            console.log("AI无子可走");
             return null; // 无子可走
         }
         
@@ -58,6 +64,8 @@ class ChessAI {
                 side === SIDES.RED ? SIDES.BLACK : SIDES.RED
             );
             
+            console.log(`移动评分: ${move.piece.getChar()} 从 ${move.piece.position} 到 ${move.to}: ${score}`);
+            
             // 更新最佳移动
             if (score > bestScore) {
                 bestScore = score;
@@ -68,18 +76,25 @@ class ChessAI {
             }
         }
         
+        console.log(`找到 ${bestMoves.length} 个最佳移动，分数: ${bestScore}`);
+        
         // 随机选择一个最佳移动（加入随机性）
         if (bestMoves.length > 0) {
             // 根据难度，可能选择次优解
             if (Math.random() < this.difficulty.randomFactor) {
                 // 随机选择一个可能的移动，而不一定是最佳移动
-                return allMoves[Math.floor(Math.random() * allMoves.length)];
+                const randomMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+                console.log(`选择随机移动: ${randomMove.piece.getChar()} 从 ${randomMove.piece.position} 到 ${randomMove.to}`);
+                return randomMove;
             } else {
                 // 在最佳移动中随机选择
-                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                const bestMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                console.log(`选择最佳移动: ${bestMove.piece.getChar()} 从 ${bestMove.piece.position} 到 ${bestMove.to}`);
+                return bestMove;
             }
         }
         
+        console.log("AI未找到有效移动");
         return null;
     }
     
