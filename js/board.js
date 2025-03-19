@@ -10,6 +10,7 @@ class Board {
         this.boardCells = [];
         
         this.init();
+        console.log("棋盘初始化完成");
     }
     
     /**
@@ -43,6 +44,7 @@ class Board {
         }
         
         this.element.appendChild(gridElement);
+        console.log(`创建棋盘网格：${BOARD_SIZE.WIDTH}×${BOARD_SIZE.HEIGHT}`);
     }
     
     /**
@@ -79,6 +81,8 @@ class Board {
         
         // 设置初始棋子
         this.setupInitialPieces();
+        
+        console.log("棋盘已重置到初始状态");
     }
     
     /**
@@ -97,6 +101,8 @@ class Board {
         
         // 清除可能移动标记
         this.clearPossibleMoves();
+        
+        console.log("清除棋盘上的所有棋子");
     }
     
     /**
@@ -112,6 +118,8 @@ class Board {
             
             this.addPiece(piece);
         });
+        
+        console.log(`初始棋子设置完成，共${this.pieces.length}个棋子`);
     }
     
     /**
@@ -149,21 +157,30 @@ class Board {
      */
     handlePieceClick(piece) {
         const game = window.game;
+        if (!game) {
+            console.error("game实例未初始化");
+            return;
+        }
         
         // 如果游戏已经结束或不是玩家回合，忽略点击
         if (game.status !== GAME_STATUS.PLAYING || game.currentTurn !== SIDES.RED) {
+            console.log("棋子点击被忽略：游戏状态或回合不对");
             return;
         }
+        
+        console.log(`棋子点击: ${piece.getChar()} [${piece.position}], 方: ${piece.side}`);
         
         // 如果选择的是对方棋子，而且已经有选中的我方棋子，尝试吃子
         if (piece.side !== SIDES.RED && this.selectedPiece) {
             const [x, y] = piece.position;
+            console.log("尝试吃子");
             this.handleCellClick(x, y);
             return;
         }
         
         // 选择己方棋子才响应
         if (piece.side !== SIDES.RED) {
+            console.log("选择的不是己方棋子，忽略");
             return;
         }
         
@@ -175,6 +192,7 @@ class Board {
         
         // 如果点击的是已选中的棋子，取消选择
         if (this.selectedPiece === piece) {
+            console.log("取消选择");
             this.selectedPiece = null;
             return;
         }
@@ -185,6 +203,7 @@ class Board {
         
         // 显示可能的移动位置
         this.showPossibleMoves(piece);
+        console.log(`选中棋子: ${piece.getChar()} [${piece.position}]`);
     }
     
     /**
@@ -193,16 +212,24 @@ class Board {
     handleCellClick(x, y) {
         // 如果没有选中棋子，忽略
         if (!this.selectedPiece) {
+            console.log(`点击格子 [${x}, ${y}] 被忽略，没有选中棋子`);
             return;
         }
         
         const game = window.game;
+        if (!game) {
+            console.error("game实例未初始化");
+            return;
+        }
+        
+        console.log(`尝试移动到 [${x}, ${y}]`);
         
         // 检查移动是否合法
         const moves = Rules.getValidMoves(this.selectedPiece, this.pieces);
         const isValidMove = moves.some(move => move[0] === x && move[1] === y);
         
         if (isValidMove) {
+            console.log("移动合法，执行移动");
             // 执行移动
             game.makeMove(this.selectedPiece, [x, y]);
             
@@ -210,6 +237,8 @@ class Board {
             this.selectedPiece.element.classList.remove('selected');
             this.selectedPiece = null;
             this.clearPossibleMoves();
+        } else {
+            console.log("移动不合法，忽略");
         }
     }
     
@@ -220,6 +249,8 @@ class Board {
         // 获取合法移动
         const moves = Rules.getValidMoves(piece, this.pieces);
         this.possibleMoves = moves;
+        
+        console.log(`棋子 ${piece.getChar()} [${piece.position}] 可移动位置: ${moves.length}个`);
         
         // 为每个可能的移动创建标记
         moves.forEach(([x, y]) => {
@@ -252,11 +283,15 @@ class Board {
      */
     movePiece(piece, newPosition) {
         const [newX, newY] = newPosition;
+        const [oldX, oldY] = piece.position;
+        
+        console.log(`移动棋子 ${piece.getChar()} 从 [${oldX}, ${oldY}] 到 [${newX}, ${newY}]`);
         
         // 检查目标位置是否有其他棋子
         const targetPiece = this.getPieceAt(newX, newY);
         if (targetPiece) {
             // 移除被吃的棋子
+            console.log(`吃掉 ${targetPiece.side} 方 ${targetPiece.getChar()}`);
             this.removePiece(targetPiece);
         }
         
@@ -266,7 +301,6 @@ class Board {
         }
         
         // 更新位置
-        const [oldX, oldY] = piece.position;
         piece.position = [newX, newY];
         
         // 放置到新位置
@@ -335,10 +369,12 @@ class Board {
         const blackKing = this.pieces.find(piece => piece.type === PIECE_TYPES.KING && piece.side === SIDES.BLACK);
         
         if (!redKing) {
+            console.log("游戏结束：红方将帅被吃，黑方胜");
             return GAME_STATUS.BLACK_WIN;
         }
         
         if (!blackKing) {
+            console.log("游戏结束：黑方将帅被吃，红方胜");
             return GAME_STATUS.RED_WIN;
         }
         
@@ -353,6 +389,7 @@ class Board {
         });
         
         if (!hasMoves) {
+            console.log(`游戏结束：${currentSide}方无子可走`);
             return currentSide === SIDES.RED ? GAME_STATUS.BLACK_WIN : GAME_STATUS.RED_WIN;
         }
         
