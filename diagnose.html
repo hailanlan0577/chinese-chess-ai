@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>中国象棋诊断页面</title>
+    <style>
+        #log {
+            font-family: monospace;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #f5f5f5;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>中国象棋诊断工具</h1>
+    <div id="log"></div>
+    <button id="diagnose">开始诊断</button>
+
+    <script>
+        const log = document.getElementById('log');
+        function logMessage(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 检查文件是否可以加载
+        async function checkFile(url) {
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    logMessage(`✅ 文件加载成功: ${url}`, 'success');
+                    return { success: true, url };
+                } else {
+                    logMessage(`❌ 文件加载失败: ${url}, 状态码: ${response.status}`, 'error');
+                    return { success: false, url, status: response.status };
+                }
+            } catch (error) {
+                logMessage(`❌ 文件加载错误: ${url}, ${error.message}`, 'error');
+                return { success: false, url, error: error.message };
+            }
+        }
+
+        // 检查脚本是否可执行
+        function checkScript(url) {
+            return new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => {
+                    logMessage(`✅ 脚本执行成功: ${url}`, 'success');
+                    resolve({ success: true, url });
+                };
+                script.onerror = (error) => {
+                    logMessage(`❌ 脚本执行失败: ${url}`, 'error');
+                    resolve({ success: false, url, error });
+                };
+                document.body.appendChild(script);
+            });
+        }
+
+        // 诊断函数
+        async function diagnose() {
+            logMessage('开始诊断...', 'info');
+            
+            // 检查CSS文件
+            await checkFile('css/style.css');
+            
+            // 检查JS文件
+            const jsFiles = [
+                'js/constants.js',
+                'js/debug.js',
+                'js/pieces.js',
+                'js/rules.js',
+                'js/board.js',
+                'js/ai.js',
+                'js/game.js',
+                'js/main.js'
+            ];
+            
+            for (const file of jsFiles) {
+                await checkFile(file);
+            }
+            
+            // 尝试执行各个文件
+            logMessage('检查JS文件是否可执行...', 'info');
+            try {
+                // 尝试加载constants.js
+                await checkScript('js/constants.js');
+                
+                // 检查是否成功加载
+                if (typeof PIECE_TYPES !== 'undefined') {
+                    logMessage('✅ PIECE_TYPES常量加载成功', 'success');
+                } else {
+                    logMessage('❌ PIECE_TYPES常量未定义', 'error');
+                }
+                
+                if (typeof SIDES !== 'undefined') {
+                    logMessage('✅ SIDES常量加载成功', 'success');
+                } else {
+                    logMessage('❌ SIDES常量未定义', 'error');
+                }
+                
+                // 加载debug.js
+                await checkScript('js/debug.js');
+                
+                // 加载pieces.js
+                await checkScript('js/pieces.js');
+                
+                // 检查Piece类是否可用
+                if (typeof Piece === 'function') {
+                    logMessage('✅ Piece类加载成功', 'success');
+                    try {
+                        const testPiece = new Piece(PIECE_TYPES.KING, SIDES.RED, [4, 9]);
+                        logMessage(`✅ 创建Piece实例成功: ${testPiece.getChar()}`, 'success');
+                    } catch (error) {
+                        logMessage(`❌ 创建Piece实例失败: ${error.message}`, 'error');
+                    }
+                } else {
+                    logMessage('❌ Piece类未定义', 'error');
+                }
+                
+                // 加载rules.js
+                await checkScript('js/rules.js');
+                
+                // 检查Rules类是否可用
+                if (typeof Rules === 'function' || typeof Rules === 'object') {
+                    logMessage('✅ Rules类/对象加载成功', 'success');
+                } else {
+                    logMessage('❌ Rules类/对象未定义', 'error');
+                }
+                
+                // 加载board.js
+                await checkScript('js/board.js');
+                
+                // 检查Board类是否可用
+                if (typeof Board === 'function') {
+                    logMessage('✅ Board类加载成功', 'success');
+                } else {
+                    logMessage('❌ Board类未定义', 'error');
+                }
+                
+                // 加载ai.js
+                await checkScript('js/ai.js');
+                
+                // 检查ChessAI类是否可用
+                if (typeof ChessAI === 'function') {
+                    logMessage('✅ ChessAI类加载成功', 'success');
+                } else {
+                    logMessage('❌ ChessAI类未定义', 'error');
+                }
+                
+                // 加载game.js
+                await checkScript('js/game.js');
+                
+                // 检查Game类是否可用
+                if (typeof Game === 'function') {
+                    logMessage('✅ Game类加载成功', 'success');
+                } else {
+                    logMessage('❌ Game类未定义', 'error');
+                }
+                
+                // 不加载main.js，因为它会立即初始化游戏
+                logMessage('诊断完成，检查上述结果查找问题。', 'info');
+                
+            } catch (error) {
+                logMessage(`诊断过程出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 绑定诊断按钮
+        document.getElementById('diagnose').addEventListener('click', diagnose);
+    </script>
+</body>
+</html>
