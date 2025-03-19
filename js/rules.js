@@ -9,17 +9,23 @@ class Rules {
      * @return {Array} 合法的移动位置数组，每个位置是 [x, y]
      */
     static getValidMoves(piece, pieces) {
-        // 获取所有可能的移动
-        let moves = this.getPossibleMoves(piece, pieces);
-        
-        console.log(`棋子 ${piece.getChar()} [${piece.position}] 的初步合法移动: ${moves.length}个`);
-        
-        // 过滤掉会导致将军的移动
-        moves = this.filterCheckMoves(piece, moves, pieces);
-        
-        console.log(`棋子 ${piece.getChar()} [${piece.position}] 的最终合法移动: ${moves.length}个`);
-        
-        return moves;
+        try {
+            // 获取所有可能的移动
+            let moves = this.getPossibleMoves(piece, pieces);
+            
+            console.log(`棋子 ${piece.getChar()} [${piece.position}] 的初步合法移动: ${moves.length}个`);
+            
+            // 过滤掉会导致将军的移动
+            moves = this.filterCheckMoves(piece, moves, pieces);
+            
+            console.log(`棋子 ${piece.getChar()} [${piece.position}] 的最终合法移动: ${moves.length}个`);
+            
+            return moves;
+        } catch (error) {
+            console.error(`获取有效移动时出错: ${error.message}`, error);
+            // 返回空数组，避免程序崩溃
+            return [];
+        }
     }
     
     /**
@@ -136,7 +142,7 @@ class Rules {
                     }
                 }
                 
-                // 如果没有阻挡，可以直接"吃"对方将/帅
+                // 如果没有阻挡，可以直接\"吃\"对方将/帅
                 if (!hasBlockingPiece) {
                     moves.push([kx, ky]);
                 }
@@ -218,6 +224,11 @@ class Rules {
             const nx = x + dx;
             const ny = y + dy;
             
+            // 首先检查目标位置是否在棋盘范围内
+            if (nx < 0 || nx >= BOARD_SIZE.WIDTH || ny < 0 || ny >= BOARD_SIZE.HEIGHT) {
+                continue;
+            }
+            
             // 确保不过河
             if ((piece.side === SIDES.RED && ny >= 5) || (piece.side === SIDES.BLACK && ny <= 4)) {
                 // 检查象眼是否被塞住
@@ -269,6 +280,11 @@ class Rules {
             const [dx, dy] = directions[i];
             const nx = x + dx;
             const ny = y + dy;
+            
+            // 首先检查目标位置是否在棋盘范围内
+            if (nx < 0 || nx >= BOARD_SIZE.WIDTH || ny < 0 || ny >= BOARD_SIZE.HEIGHT) {
+                continue;
+            }
             
             // 检查马腿是否被塞住
             const [lx, ly] = legs[i];
@@ -427,20 +443,25 @@ class Rules {
      * 过滤掉会导致自己被将军的移动
      */
     static filterCheckMoves(piece, moves, pieces) {
-        const side = piece.side;
-        
-        return moves.filter(([nx, ny]) => {
-            try {
-                // 模拟移动
-                const simulatedPieces = this.simulateMove(piece, [nx, ny], pieces);
-                
-                // 检查移动后是否会被将军
-                return !this.isChecked(side, simulatedPieces);
-            } catch (error) {
-                console.error("过滤将军移动时出错:", error);
-                return false;
-            }
-        });
+        try {
+            const side = piece.side;
+            
+            return moves.filter(([nx, ny]) => {
+                try {
+                    // 模拟移动
+                    const simulatedPieces = this.simulateMove(piece, [nx, ny], pieces);
+                    
+                    // 检查移动后是否会被将军
+                    return !this.isChecked(side, simulatedPieces);
+                } catch (error) {
+                    console.error(`过滤移动 [${nx}, ${ny}] 时出错:`, error);
+                    return false; // 发生错误时，保守地不允许这个移动
+                }
+            });
+        } catch (error) {
+            console.error("过滤将军移动时出错:", error);
+            return []; // 发生错误时返回空数组，避免程序崩溃
+        }
     }
     
     /**
@@ -504,18 +525,22 @@ class Rules {
             // 检查是否有敌方棋子可以吃到将/帅
             const oppositeSide = side === SIDES.RED ? SIDES.BLACK : SIDES.RED;
             
-            return pieces.some(piece => {
-                if (piece.side !== oppositeSide) return false;
+            for (const piece of pieces) {
+                if (piece.side !== oppositeSide) continue;
                 
                 // 获取该棋子的所有可能移动（不考虑将军）
                 const moves = this.getPossibleMoves(piece, pieces);
                 
                 // 检查是否有移动可以到达将/帅位置
-                return moves.some(([mx, my]) => mx === kx && my === ky);
-            });
+                if (moves.some(([mx, my]) => mx === kx && my === ky)) {
+                    return true;
+                }
+            }
+            
+            return false;
         } catch (error) {
             console.error("检查将军状态时出错:", error);
-            return false;
+            return false; // 出错时保守地假设没有将军
         }
     }
     
