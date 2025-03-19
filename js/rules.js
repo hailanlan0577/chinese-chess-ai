@@ -12,8 +12,12 @@ class Rules {
         // 获取所有可能的移动
         let moves = this.getPossibleMoves(piece, pieces);
         
+        console.log(`棋子 ${piece.getChar()} [${piece.position}] 的初步合法移动: ${moves.length}个`);
+        
         // 过滤掉会导致将军的移动
         moves = this.filterCheckMoves(piece, moves, pieces);
+        
+        console.log(`棋子 ${piece.getChar()} [${piece.position}] 的最终合法移动: ${moves.length}个`);
         
         return moves;
     }
@@ -28,42 +32,49 @@ class Rules {
         const [x, y] = piece.position;
         let moves = [];
         
-        switch (piece.type) {
-            case PIECE_TYPES.KING:
-                moves = this.getKingMoves(piece, pieces);
-                break;
-            case PIECE_TYPES.ADVISOR:
-                moves = this.getAdvisorMoves(piece, pieces);
-                break;
-            case PIECE_TYPES.ELEPHANT:
-                moves = this.getElephantMoves(piece, pieces);
-                break;
-            case PIECE_TYPES.HORSE:
-                moves = this.getHorseMoves(piece, pieces);
-                break;
-            case PIECE_TYPES.CHARIOT:
-                moves = this.getChariotMoves(piece, pieces);
-                break;
-            case PIECE_TYPES.CANNON:
-                moves = this.getCannonMoves(piece, pieces);
-                break;
-            case PIECE_TYPES.PAWN:
-                moves = this.getPawnMoves(piece, pieces);
-                break;
+        try {
+            switch (piece.type) {
+                case PIECE_TYPES.KING:
+                    moves = this.getKingMoves(piece, pieces);
+                    break;
+                case PIECE_TYPES.ADVISOR:
+                    moves = this.getAdvisorMoves(piece, pieces);
+                    break;
+                case PIECE_TYPES.ELEPHANT:
+                    moves = this.getElephantMoves(piece, pieces);
+                    break;
+                case PIECE_TYPES.HORSE:
+                    moves = this.getHorseMoves(piece, pieces);
+                    break;
+                case PIECE_TYPES.CHARIOT:
+                    moves = this.getChariotMoves(piece, pieces);
+                    break;
+                case PIECE_TYPES.CANNON:
+                    moves = this.getCannonMoves(piece, pieces);
+                    break;
+                case PIECE_TYPES.PAWN:
+                    moves = this.getPawnMoves(piece, pieces);
+                    break;
+                default:
+                    console.error(`未知棋子类型: ${piece.type}`);
+            }
+            
+            // 过滤掉超出棋盘范围的移动
+            moves = moves.filter(([nx, ny]) => {
+                return nx >= 0 && nx < BOARD_SIZE.WIDTH && ny >= 0 && ny < BOARD_SIZE.HEIGHT;
+            });
+            
+            // 过滤掉吃自己棋子的移动
+            moves = moves.filter(([nx, ny]) => {
+                const targetPiece = this.getPieceAt([nx, ny], pieces);
+                return !targetPiece || targetPiece.side !== piece.side;
+            });
+            
+            return moves;
+        } catch (error) {
+            console.error(`获取棋子 ${piece.getChar()} [${piece.position}] 的移动时出错:`, error);
+            return [];
         }
-        
-        // 过滤掉超出棋盘范围的移动
-        moves = moves.filter(([nx, ny]) => {
-            return nx >= 0 && nx < BOARD_SIZE.WIDTH && ny >= 0 && ny < BOARD_SIZE.HEIGHT;
-        });
-        
-        // 过滤掉吃自己棋子的移动
-        moves = moves.filter(([nx, ny]) => {
-            const targetPiece = this.getPieceAt([nx, ny], pieces);
-            return !targetPiece || targetPiece.side !== piece.side;
-        });
-        
-        return moves;
     }
     
     /**
@@ -419,11 +430,16 @@ class Rules {
         const side = piece.side;
         
         return moves.filter(([nx, ny]) => {
-            // 模拟移动
-            const simulatedPieces = this.simulateMove(piece, [nx, ny], pieces);
-            
-            // 检查移动后是否会被将军
-            return !this.isChecked(side, simulatedPieces);
+            try {
+                // 模拟移动
+                const simulatedPieces = this.simulateMove(piece, [nx, ny], pieces);
+                
+                // 检查移动后是否会被将军
+                return !this.isChecked(side, simulatedPieces);
+            } catch (error) {
+                console.error("过滤将军移动时出错:", error);
+                return false;
+            }
         });
     }
     
@@ -431,70 +447,91 @@ class Rules {
      * 模拟移动棋子，返回移动后的棋盘状态
      */
     static simulateMove(piece, newPos, pieces) {
-        // 深拷贝所有棋子
-        const newPieces = pieces.map(p => {
-            return new Piece(p.type, p.side, [...p.position]);
-        });
-        
-        // 找到目标棋子
-        const movingPiece = newPieces.find(p => {
-            const [px, py] = p.position;
-            const [x, y] = piece.position;
-            return px === x && py === y && p.type === piece.type && p.side === piece.side;
-        });
-        
-        if (!movingPiece) return newPieces;
-        
-        // 检查目标位置是否有棋子需要移除
-        const [nx, ny] = newPos;
-        const targetIndex = newPieces.findIndex(p => {
-            const [px, py] = p.position;
-            return px === nx && py === ny;
-        });
-        
-        // 如果有，移除目标位置的棋子
-        if (targetIndex !== -1) {
-            newPieces.splice(targetIndex, 1);
+        try {
+            // 深拷贝所有棋子
+            const newPieces = pieces.map(p => {
+                return new Piece(p.type, p.side, [...p.position]);
+            });
+            
+            // 找到目标棋子
+            const movingPiece = newPieces.find(p => {
+                const [px, py] = p.position;
+                const [x, y] = piece.position;
+                return px === x && py === y && p.type === piece.type && p.side === piece.side;
+            });
+            
+            if (!movingPiece) {
+                console.error("模拟移动：找不到棋子");
+                return newPieces;
+            }
+            
+            // 检查目标位置是否有棋子需要移除
+            const [nx, ny] = newPos;
+            const targetIndex = newPieces.findIndex(p => {
+                const [px, py] = p.position;
+                return px === nx && py === ny;
+            });
+            
+            // 如果有，移除目标位置的棋子
+            if (targetIndex !== -1) {
+                newPieces.splice(targetIndex, 1);
+            }
+            
+            // 移动棋子
+            movingPiece.position = [...newPos];
+            
+            return newPieces;
+        } catch (error) {
+            console.error("模拟移动出错:", error);
+            return [...pieces]; // 返回原始棋子，避免错误传播
         }
-        
-        // 移动棋子
-        movingPiece.position = [...newPos];
-        
-        return newPieces;
     }
     
     /**
      * 检查指定方是否被将军
      */
     static isChecked(side, pieces) {
-        // 找到将/帅
-        const king = pieces.find(p => p.type === PIECE_TYPES.KING && p.side === side);
-        if (!king) return false; // 没有将/帅，不算被将军
-        
-        const [kx, ky] = king.position;
-        
-        // 检查是否有敌方棋子可以吃到将/帅
-        const oppositeSide = side === SIDES.RED ? SIDES.BLACK : SIDES.RED;
-        
-        return pieces.some(piece => {
-            if (piece.side !== oppositeSide) return false;
+        try {
+            // 找到将/帅
+            const king = pieces.find(p => p.type === PIECE_TYPES.KING && p.side === side);
+            if (!king) {
+                console.error(`找不到 ${side} 方将帅`);
+                return false; // 没有将/帅，不算被将军
+            }
             
-            // 获取该棋子的所有可能移动（不考虑将军）
-            const moves = this.getPossibleMoves(piece, pieces);
+            const [kx, ky] = king.position;
             
-            // 检查是否有移动可以到达将/帅位置
-            return moves.some(([mx, my]) => mx === kx && my === ky);
-        });
+            // 检查是否有敌方棋子可以吃到将/帅
+            const oppositeSide = side === SIDES.RED ? SIDES.BLACK : SIDES.RED;
+            
+            return pieces.some(piece => {
+                if (piece.side !== oppositeSide) return false;
+                
+                // 获取该棋子的所有可能移动（不考虑将军）
+                const moves = this.getPossibleMoves(piece, pieces);
+                
+                // 检查是否有移动可以到达将/帅位置
+                return moves.some(([mx, my]) => mx === kx && my === ky);
+            });
+        } catch (error) {
+            console.error("检查将军状态时出错:", error);
+            return false;
+        }
     }
     
     /**
      * 获取指定位置的棋子
      */
     static getPieceAt(position, pieces) {
-        const [x, y] = position;
-        return pieces.find(piece => {
-            const [px, py] = piece.position;
-            return px === x && py === y;
-        });
+        try {
+            const [x, y] = position;
+            return pieces.find(piece => {
+                const [px, py] = piece.position;
+                return px === x && py === y;
+            });
+        } catch (error) {
+            console.error("获取指定位置棋子出错:", error);
+            return null;
+        }
     }
 }
