@@ -2,182 +2,253 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>中国象棋诊断页面</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国象棋 - 诊断工具</title>
     <style>
-        #log {
-            font-family: monospace;
-            border: 1px solid #ccc;
-            padding: 10px;
-            background: #f5f5f5;
-            max-height: 300px;
-            overflow-y: auto;
-            margin: 10px 0;
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
         }
-        .error { color: red; }
-        .success { color: green; }
-        .info { color: blue; }
+        .log-container {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .board {
+            background-color: #DEB887;
+            border: 2px solid #8B4513;
+            position: relative;
+            width: 400px;
+            aspect-ratio: 9/10;
+            margin-top: 20px;
+        }
+        .board-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+        }
+        .board-cell {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #8B4513;
+        }
+        .river {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 0;
+            border-top: 2px dashed #8B4513;
+            transform: translateY(-50%);
+        }
+        .piece {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            position: relative;
+            z-index: 10;
+        }
+        .piece.red {
+            background-color: #f0f0f0;
+            color: #d40000;
+            border: 2px solid #d40000;
+        }
+        .piece.black {
+            background-color: #f0f0f0;
+            color: #000;
+            border: 2px solid #000;
+        }
+        h3 {
+            margin-top: 30px;
+        }
     </style>
 </head>
 <body>
-    <h1>中国象棋诊断工具</h1>
-    <div id="log"></div>
-    <button id="diagnose">开始诊断</button>
-
+    <h1>中国象棋 - 诊断工具</h1>
+    
+    <div>
+        <button id="check-dom-btn">检查DOM结构</button>
+        <button id="test-board-render-btn">测试棋盘渲染</button>
+        <button id="test-piece-render-btn">测试棋子渲染</button>
+        <button id="check-errors-btn">检查控制台错误</button>
+        <button id="clear-console-btn">清空输出</button>
+    </div>
+    
+    <div class="log-container" id="log"></div>
+    
+    <h3>简单测试棋盘:</h3>
+    <div id="test-board" class="board"></div>
+    
     <script>
-        const log = document.getElementById('log');
-        function logMessage(message, type = 'info') {
-            const div = document.createElement('div');
-            div.className = type;
-            div.textContent = message;
-            log.appendChild(div);
-            log.scrollTop = log.scrollHeight;
-        }
-
-        // 检查文件是否可以加载
-        async function checkFile(url) {
+        // 日志函数
+        const log = function(message) {
+            const logContainer = document.getElementById('log');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = message;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        };
+        
+        // 检查DOM结构
+        document.getElementById('check-dom-btn').addEventListener('click', function() {
+            log('---------- 检查DOM结构 ----------');
             try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    logMessage(`✅ 文件加载成功: ${url}`, 'success');
-                    return { success: true, url };
+                const board = document.getElementById('board');
+                if (!board) {
+                    log('错误: 主页面找不到ID为board的元素');
                 } else {
-                    logMessage(`❌ 文件加载失败: ${url}, 状态码: ${response.status}`, 'error');
-                    return { success: false, url, status: response.status };
-                }
-            } catch (error) {
-                logMessage(`❌ 文件加载错误: ${url}, ${error.message}`, 'error');
-                return { success: false, url, error: error.message };
-            }
-        }
-
-        // 检查脚本是否可执行
-        function checkScript(url) {
-            return new Promise((resolve) => {
-                const script = document.createElement('script');
-                script.src = url;
-                script.onload = () => {
-                    logMessage(`✅ 脚本执行成功: ${url}`, 'success');
-                    resolve({ success: true, url });
-                };
-                script.onerror = (error) => {
-                    logMessage(`❌ 脚本执行失败: ${url}`, 'error');
-                    resolve({ success: false, url, error });
-                };
-                document.body.appendChild(script);
-            });
-        }
-
-        // 诊断函数
-        async function diagnose() {
-            logMessage('开始诊断...', 'info');
-            
-            // 检查CSS文件
-            await checkFile('css/style.css');
-            
-            // 检查JS文件
-            const jsFiles = [
-                'js/constants.js',
-                'js/debug.js',
-                'js/pieces.js',
-                'js/rules.js',
-                'js/board.js',
-                'js/ai.js',
-                'js/game.js',
-                'js/main.js'
-            ];
-            
-            for (const file of jsFiles) {
-                await checkFile(file);
-            }
-            
-            // 尝试执行各个文件
-            logMessage('检查JS文件是否可执行...', 'info');
-            try {
-                // 尝试加载constants.js
-                await checkScript('js/constants.js');
-                
-                // 检查是否成功加载
-                if (typeof PIECE_TYPES !== 'undefined') {
-                    logMessage('✅ PIECE_TYPES常量加载成功', 'success');
-                } else {
-                    logMessage('❌ PIECE_TYPES常量未定义', 'error');
-                }
-                
-                if (typeof SIDES !== 'undefined') {
-                    logMessage('✅ SIDES常量加载成功', 'success');
-                } else {
-                    logMessage('❌ SIDES常量未定义', 'error');
-                }
-                
-                // 加载debug.js
-                await checkScript('js/debug.js');
-                
-                // 加载pieces.js
-                await checkScript('js/pieces.js');
-                
-                // 检查Piece类是否可用
-                if (typeof Piece === 'function') {
-                    logMessage('✅ Piece类加载成功', 'success');
-                    try {
-                        const testPiece = new Piece(PIECE_TYPES.KING, SIDES.RED, [4, 9]);
-                        logMessage(`✅ 创建Piece实例成功: ${testPiece.getChar()}`, 'success');
-                    } catch (error) {
-                        logMessage(`❌ 创建Piece实例失败: ${error.message}`, 'error');
+                    log(`找到board元素: ${board.tagName}, class=${board.className}`);
+                    
+                    // 检查子元素
+                    const gridElement = board.querySelector('.board-grid');
+                    if (!gridElement) {
+                        log('错误: board元素中找不到.board-grid元素');
+                    } else {
+                        log(`找到grid元素: 包含 ${gridElement.children.length} 个子元素`);
                     }
-                } else {
-                    logMessage('❌ Piece类未定义', 'error');
+                    
+                    // 检查河界元素
+                    const riverElement = board.querySelector('.river');
+                    if (!riverElement) {
+                        log('错误: board元素中找不到.river元素');
+                    } else {
+                        log('找到river元素');
+                    }
+                    
+                    // 检查棋子
+                    const pieces = board.querySelectorAll('.piece');
+                    log(`找到 ${pieces.length} 个棋子元素`);
                 }
-                
-                // 加载rules.js
-                await checkScript('js/rules.js');
-                
-                // 检查Rules类是否可用
-                if (typeof Rules === 'function' || typeof Rules === 'object') {
-                    logMessage('✅ Rules类/对象加载成功', 'success');
-                } else {
-                    logMessage('❌ Rules类/对象未定义', 'error');
-                }
-                
-                // 加载board.js
-                await checkScript('js/board.js');
-                
-                // 检查Board类是否可用
-                if (typeof Board === 'function') {
-                    logMessage('✅ Board类加载成功', 'success');
-                } else {
-                    logMessage('❌ Board类未定义', 'error');
-                }
-                
-                // 加载ai.js
-                await checkScript('js/ai.js');
-                
-                // 检查ChessAI类是否可用
-                if (typeof ChessAI === 'function') {
-                    logMessage('✅ ChessAI类加载成功', 'success');
-                } else {
-                    logMessage('❌ ChessAI类未定义', 'error');
-                }
-                
-                // 加载game.js
-                await checkScript('js/game.js');
-                
-                // 检查Game类是否可用
-                if (typeof Game === 'function') {
-                    logMessage('✅ Game类加载成功', 'success');
-                } else {
-                    logMessage('❌ Game类未定义', 'error');
-                }
-                
-                // 不加载main.js，因为它会立即初始化游戏
-                logMessage('诊断完成，检查上述结果查找问题。', 'info');
-                
             } catch (error) {
-                logMessage(`诊断过程出错: ${error.message}`, 'error');
+                log(`检查DOM时出错: ${error.message}`);
             }
-        }
-
-        // 绑定诊断按钮
-        document.getElementById('diagnose').addEventListener('click', diagnose);
+        });
+        
+        // 测试棋盘渲染
+        document.getElementById('test-board-render-btn').addEventListener('click', function() {
+            log('---------- 测试棋盘渲染 ----------');
+            try {
+                const testBoard = document.getElementById('test-board');
+                testBoard.innerHTML = '';
+                
+                // 创建棋盘网格
+                const gridElement = document.createElement('div');
+                gridElement.className = 'board-grid';
+                
+                // 创建9x10的网格
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 9; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'board-cell';
+                        cell.dataset.x = x;
+                        cell.dataset.y = y;
+                        gridElement.appendChild(cell);
+                    }
+                }
+                
+                testBoard.appendChild(gridElement);
+                
+                // 添加河界
+                const river = document.createElement('div');
+                river.className = 'river';
+                testBoard.appendChild(river);
+                
+                log('测试棋盘渲染成功');
+            } catch (error) {
+                log(`测试棋盘渲染时出错: ${error.message}`);
+            }
+        });
+        
+        // 测试棋子渲染
+        document.getElementById('test-piece-render-btn').addEventListener('click', function() {
+            log('---------- 测试棋子渲染 ----------');
+            try {
+                // 获取测试棋盘的所有格子
+                const cells = document.querySelectorAll('#test-board .board-cell');
+                if (cells.length === 0) {
+                    log('请先点击"测试棋盘渲染"按钮');
+                    return;
+                }
+                
+                // 清除现有棋子
+                document.querySelectorAll('#test-board .piece').forEach(p => p.remove());
+                
+                // 添加测试棋子
+                const testPieces = [
+                    { type: '车', side: 'red', position: [0, 9] },
+                    { type: '马', side: 'red', position: [1, 9] },
+                    { type: '相', side: 'red', position: [2, 9] },
+                    { type: '士', side: 'red', position: [3, 9] },
+                    { type: '帅', side: 'red', position: [4, 9] },
+                    { type: '车', side: 'black', position: [0, 0] },
+                    { type: '马', side: 'black', position: [1, 0] },
+                    { type: '象', side: 'black', position: [2, 0] },
+                    { type: '士', side: 'black', position: [3, 0] },
+                    { type: '将', side: 'black', position: [4, 0] }
+                ];
+                
+                // 渲染棋子
+                testPieces.forEach(pieceData => {
+                    const [x, y] = pieceData.position;
+                    const cellIndex = y * 9 + x;
+                    if (cellIndex < cells.length) {
+                        const pieceElement = document.createElement('div');
+                        pieceElement.className = `piece ${pieceData.side}`;
+                        pieceElement.textContent = pieceData.type;
+                        cells[cellIndex].appendChild(pieceElement);
+                    }
+                });
+                
+                log('测试棋子渲染成功');
+            } catch (error) {
+                log(`测试棋子渲染时出错: ${error.message}`);
+            }
+        });
+        
+        // 检查控制台错误
+        document.getElementById('check-errors-btn').addEventListener('click', function() {
+            log('---------- 检查当前控制台错误 ----------');
+            log('请在浏览器控制台中查看JavaScript错误');
+            log('建议打开浏览器的开发者工具 (F12)，查看Console标签');
+        });
+        
+        // 清空控制台
+        document.getElementById('clear-console-btn').addEventListener('click', function() {
+            document.getElementById('log').innerHTML = '';
+        });
+        
+        // 页面加载时输出基本信息
+        window.addEventListener('load', function() {
+            log('诊断工具已加载');
+            log(`浏览器信息: ${navigator.userAgent}`);
+            log('点击上方按钮开始诊断');
+        });
     </script>
 </body>
 </html>
