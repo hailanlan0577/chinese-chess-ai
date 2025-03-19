@@ -19,6 +19,8 @@ class Board {
     init() {
         this.createBoardGrid();
         this.addRiverDecoration();
+        // 设置初始棋子 - 重要修复：确保构造函数中初始化棋子
+        this.setupInitialPieces();
     }
     
     /**
@@ -138,6 +140,8 @@ class Board {
         const cell = this.getCellAt(x, y);
         if (cell) {
             cell.appendChild(pieceElement);
+        } else {
+            console.error(`添加棋子失败: 找不到位置 [${x}, ${y}] 的棋盘格`);
         }
         
         // 存储DOM引用
@@ -307,6 +311,8 @@ class Board {
         const cell = this.getCellAt(newX, newY);
         if (cell) {
             cell.appendChild(piece.element);
+        } else {
+            console.error(`移动失败: 找不到位置 [${newX}, ${newY}] 的棋盘格`);
         }
         
         return { from: [oldX, oldY], to: [newX, newY], captured: targetPiece };
