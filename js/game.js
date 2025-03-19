@@ -16,6 +16,9 @@ class Game {
         
         // 初始化游戏
         this.init();
+        
+        // 调试信息
+        console.log("游戏初始化: AI难度设置为", this.ai.difficulty);
     }
     
     /**
@@ -52,6 +55,7 @@ class Game {
      */
     setDifficulty(level) {
         this.ai.setDifficulty(level);
+        console.log("难度已设置:", level, this.ai.difficulty);
     }
     
     /**
@@ -62,8 +66,11 @@ class Game {
     makeMove(piece, to) {
         // 如果游戏已结束或不是玩家回合，忽略
         if (this.status !== GAME_STATUS.PLAYING || this.currentTurn !== SIDES.RED) {
+            console.log("无法移动：游戏已结束或不是玩家回合");
             return false;
         }
+        
+        console.log(`玩家移动: ${piece.getChar()} 从 ${piece.position} 到 ${to}`);
         
         // 执行移动
         const moveResult = this.board.movePiece(piece, to);
@@ -83,6 +90,7 @@ class Game {
         }
         
         // AI回合
+        console.log("玩家回合结束，开始AI回合");
         setTimeout(() => this.aiMove(), 500);
         
         return true;
@@ -94,13 +102,18 @@ class Game {
     aiMove() {
         // 如果游戏已结束或不是AI回合，忽略
         if (this.status !== GAME_STATUS.PLAYING || this.currentTurn !== SIDES.BLACK) {
+            console.log("AI无法移动：游戏已结束或不是AI回合");
             return;
         }
+        
+        console.log("AI开始思考...");
         
         // 获取AI最佳移动
         const move = this.ai.getBestMove(this.board.pieces, SIDES.BLACK);
         
         if (move) {
+            console.log(`AI决定移动: ${move.piece.getChar()} 从 ${move.piece.position} 到 ${move.to}`);
+            
             // 执行移动
             const moveResult = this.board.movePiece(move.piece, move.to);
             
@@ -117,6 +130,7 @@ class Game {
                 this.endGame(gameStatus);
             }
         } else {
+            console.log("AI无子可走，游戏结束");
             // AI无子可走，游戏结束
             this.endGame(GAME_STATUS.RED_WIN);
         }
@@ -210,6 +224,7 @@ class Game {
         }
         
         this.statusElement.textContent = statusText;
+        console.log("游戏状态更新:", statusText);
     }
     
     /**
@@ -219,5 +234,6 @@ class Game {
     endGame(status) {
         this.status = status;
         this.updateStatus();
+        console.log("游戏结束，结果:", status);
     }
 }
