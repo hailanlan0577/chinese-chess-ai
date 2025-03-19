@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>调试页面</title>
+    <script>
+        function checkFile(url) {
+            const resultDiv = document.getElementById('result');
+            
+            fetch(url)
+                .then(response => {
+                    if(response.ok) {
+                        resultDiv.innerHTML += `<p style="color:green">✓ 文件存在: ${url}</p>`;
+                    } else {
+                        resultDiv.innerHTML += `<p style="color:red">✗ 文件不存在: ${url}</p>`;
+                    }
+                })
+                .catch(error => {
+                    resultDiv.innerHTML += `<p style="color:red">✗ 错误: ${url} - ${error}</p>`;
+                });
+        }
+        
+        function runTests() {
+            const files = [
+                'css/style.css',
+                'js/constants.js',
+                'js/debug.js',
+                'js/pieces.js',
+                'js/rules.js',
+                'js/board.js',
+                'js/ai.js',
+                'js/game.js',
+                'js/main.js'
+            ];
+            
+            document.getElementById('result').innerHTML = '<h2>文件检查结果:</h2>';
+            
+            files.forEach(file => {
+                checkFile(file);
+            });
+        }
+        
+        window.onload = runTests;
+    </script>
+</head>
+<body>
+    <h1>中国象棋调试页面</h1>
+    <div id="result">正在检查文件...</div>
+    <button onclick="runTests()">重新检查</button>
+</body>
+</html>
