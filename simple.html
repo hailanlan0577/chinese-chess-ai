@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易中国象棋</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            text-align: center;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(9, 50px);
+            grid-template-rows: repeat(10, 50px);
+            gap: 0;
+            margin: 20px auto;
+            background-color: #DEB887;
+            border: 2px solid #8B4513;
+        }
+        
+        .cell {
+            position: relative;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .cell::before, .cell::after {
+            content: '';
+            position: absolute;
+            background-color: black;
+        }
+        
+        .cell::before {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+        }
+        
+        .cell::after {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+        }
+        
+        .piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            z-index: 10;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .piece.red {
+            background-color: #f0f0f0;
+            color: #d40000;
+            border: 2px solid #d40000;
+        }
+        
+        .piece.black {
+            background-color: #f0f0f0;
+            color: #000;
+            border: 2px solid #000;
+        }
+        
+        .river {
+            grid-column: 1 / span 9;
+            grid-row: 5;
+            border-top: 2px dashed #8B4513;
+            position: relative;
+            text-align: center;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>简易中国象棋</h1>
+        <div class="board" id="board"></div>
+        <button id="reset">重新开始</button>
+    </div>
+
+    <script>
+        // 棋子类型和阵营
+        const PIECE_TYPES = {
+            KING: 'king',
+            ADVISOR: 'advisor',
+            ELEPHANT: 'elephant',
+            HORSE: 'horse',
+            CHARIOT: 'chariot',
+            CANNON: 'cannon',
+            PAWN: 'pawn'
+        };
+        
+        const SIDES = {
+            RED: 'red',
+            BLACK: 'black'
+        };
+        
+        // 棋子字符
+        const PIECE_CHARS = {
+            [SIDES.RED]: {
+                [PIECE_TYPES.KING]: '帅',
+                [PIECE_TYPES.ADVISOR]: '仕',
+                [PIECE_TYPES.ELEPHANT]: '相',
+                [PIECE_TYPES.HORSE]: '马',
+                [PIECE_TYPES.CHARIOT]: '车',
+                [PIECE_TYPES.CANNON]: '炮',
+                [PIECE_TYPES.PAWN]: '兵'
+            },
+            [SIDES.BLACK]: {
+                [PIECE_TYPES.KING]: '将',
+                [PIECE_TYPES.ADVISOR]: '士',
+                [PIECE_TYPES.ELEPHANT]: '象',
+                [PIECE_TYPES.HORSE]: '马',
+                [PIECE_TYPES.CHARIOT]: '车',
+                [PIECE_TYPES.CANNON]: '炮',
+                [PIECE_TYPES.PAWN]: '卒'
+            }
+        };
+        
+        // 初始棋盘配置
+        const INITIAL_BOARD = [
+            // 黑方（上方）
+            { type: PIECE_TYPES.CHARIOT, side: SIDES.BLACK, position: [0, 0] },
+            { type: PIECE_TYPES.HORSE, side: SIDES.BLACK, position: [1, 0] },
+            { type: PIECE_TYPES.ELEPHANT, side: SIDES.BLACK, position: [2, 0] },
+            { type: PIECE_TYPES.ADVISOR, side: SIDES.BLACK, position: [3, 0] },
+            { type: PIECE_TYPES.KING, side: SIDES.BLACK, position: [4, 0] },
+            { type: PIECE_TYPES.ADVISOR, side: SIDES.BLACK, position: [5, 0] },
+            { type: PIECE_TYPES.ELEPHANT, side: SIDES.BLACK, position: [6, 0] },
+            { type: PIECE_TYPES.HORSE, side: SIDES.BLACK, position: [7, 0] },
+            { type: PIECE_TYPES.CHARIOT, side: SIDES.BLACK, position: [8, 0] },
+            { type: PIECE_TYPES.CANNON, side: SIDES.BLACK, position: [1, 2] },
+            { type: PIECE_TYPES.CANNON, side: SIDES.BLACK, position: [7, 2] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.BLACK, position: [0, 3] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.BLACK, position: [2, 3] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.BLACK, position: [4, 3] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.BLACK, position: [6, 3] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.BLACK, position: [8, 3] },
+            
+            // 红方（下方）
+            { type: PIECE_TYPES.PAWN, side: SIDES.RED, position: [0, 6] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.RED, position: [2, 6] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.RED, position: [4, 6] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.RED, position: [6, 6] },
+            { type: PIECE_TYPES.PAWN, side: SIDES.RED, position: [8, 6] },
+            { type: PIECE_TYPES.CANNON, side: SIDES.RED, position: [1, 7] },
+            { type: PIECE_TYPES.CANNON, side: SIDES.RED, position: [7, 7] },
+            { type: PIECE_TYPES.CHARIOT, side: SIDES.RED, position: [0, 9] },
+            { type: PIECE_TYPES.HORSE, side: SIDES.RED, position: [1, 9] },
+            { type: PIECE_TYPES.ELEPHANT, side: SIDES.RED, position: [2, 9] },
+            { type: PIECE_TYPES.ADVISOR, side: SIDES.RED, position: [3, 9] },
+            { type: PIECE_TYPES.KING, side: SIDES.RED, position: [4, 9] },
+            { type: PIECE_TYPES.ADVISOR, side: SIDES.RED, position: [5, 9] },
+            { type: PIECE_TYPES.ELEPHANT, side: SIDES.RED, position: [6, 9] },
+            { type: PIECE_TYPES.HORSE, side: SIDES.RED, position: [7, 9] },
+            { type: PIECE_TYPES.CHARIOT, side: SIDES.RED, position: [8, 9] }
+        ];
+        
+        // 简易游戏类
+        class SimpleChessGame {
+            constructor() {
+                this.boardElement = document.getElementById('board');
+                this.resetButton = document.getElementById('reset');
+                this.cells = [];
+                this.pieces = [];
+                
+                this.setupBoard();
+                this.setupPieces();
+                
+                this.resetButton.addEventListener('click', () => this.reset());
+            }
+            
+            setupBoard() {
+                // 清空棋盘
+                this.boardElement.innerHTML = '';
+                this.cells = [];
+                
+                // 创建棋盘格子
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 9; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.x = x;
+                        cell.dataset.y = y;
+                        
+                        this.boardElement.appendChild(cell);
+                        this.cells.push(cell);
+                    }
+                }
+                
+                // 添加楚河汉界
+                const river = document.createElement('div');
+                river.className = 'river';
+                river.textContent = '楚河                     汉界';
+                this.boardElement.appendChild(river);
+            }
+            
+            setupPieces() {
+                // 清除所有棋子
+                this.pieces = [];
+                
+                // 创建初始棋子
+                INITIAL_BOARD.forEach(pieceData => {
+                    this.createPiece(pieceData.type, pieceData.side, pieceData.position);
+                });
+            }
+            
+            createPiece(type, side, position) {
+                const [x, y] = position;
+                
+                // 创建棋子DOM元素
+                const pieceElement = document.createElement('div');
+                pieceElement.className = `piece ${side}`;
+                pieceElement.textContent = PIECE_CHARS[side][type];
+                
+                // 找到对应的格子
+                const cell = this.getCellAt(x, y);
+                if (cell) {
+                    cell.appendChild(pieceElement);
+                }
+                
+                // 保存棋子信息
+                const piece = { type, side, position, element: pieceElement };
+                this.pieces.push(piece);
+                
+                return piece;
+            }
+            
+            getCellAt(x, y) {
+                return this.cells.find(cell => {
+                    return parseInt(cell.dataset.x) === x && parseInt(cell.dataset.y) === y;
+                });
+            }
+            
+            reset() {
+                // 清空棋盘
+                this.cells.forEach(cell => {
+                    cell.innerHTML = '';
+                });
+                
+                // 重新设置棋子
+                this.setupPieces();
+            }
+        }
+        
+        // 初始化游戏
+        document.addEventListener('DOMContentLoaded', () => {
+            const game = new SimpleChessGame();
+        });
+    </script>
+</body>
+</html>
