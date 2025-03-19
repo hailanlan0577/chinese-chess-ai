@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 绑定UI事件
     initEventHandlers();
+    
+    // 调试信息
+    console.log('游戏初始化完成，等待用户操作');
 });
 
 /**
@@ -24,6 +27,7 @@ function initEventHandlers() {
             // 设置AI难度
             const difficulty = this.id;
             window.game.setDifficulty(difficulty);
+            console.log(`已设置AI难度为: ${difficulty}`);
         });
     });
     
@@ -33,6 +37,7 @@ function initEventHandlers() {
         restartButton.addEventListener('click', () => {
             if (confirm('确定要重新开始游戏吗？')) {
                 window.game.restart();
+                console.log('游戏已重新开始');
             }
         });
     }
