@@ -5,6 +5,11 @@ class ChessAI {
     constructor() {
         // 默认使用中等难度
         this.setDifficulty('medium');
+        
+        // 缓存系统
+        this.moveCache = new Map(); // 移动缓存
+        this.evalCache = new Map(); // 评估缓存
+        
         console.log("AI初始化完成，默认难度：medium");
     }
     
@@ -26,7 +31,45 @@ class ChessAI {
             default:
                 this.difficulty = AI_DIFFICULTY.MEDIUM;
         }
+        
+        // 清除缓存，因为难度改变会影响评估
+        this.clearCache();
+        
         console.log(`AI难度设置为 ${level}，搜索深度: ${this.difficulty.depth}, 随机因子: ${this.difficulty.randomFactor}`);
+    }
+    
+    /**
+     * 清除AI缓存
+     */
+    clearCache() {
+        this.moveCache.clear();
+        this.evalCache.clear();
+        console.log("AI缓存已清除");
+    }
+    
+    /**
+     * 获取棋盘状态的哈希值（用于缓存）
+     * @param {Array} pieces - 棋子数组
+     * @return {string} 哈希值
+     */
+    getBoardHash(pieces) {
+        // 简单的序列化，足够作为缓存键
+        return JSON.stringify(pieces.map(p => ({
+            t: p.type,
+            s: p.side,
+            p: p.position
+        })));
+    }
+    
+    /**
+     * 获取移动状态哈希（用于缓存）
+     * @param {Piece} piece - 棋子
+     * @param {Array} position - 目标位置
+     * @param {Array} pieces - 所有棋子
+     * @return {string} 哈希值
+     */
+    getMoveHash(piece, position, pieces) {
+        return `${piece.type}_${piece.side}_${piece.position.join(',')}_${position.join(',')}_${this.getBoardHash(pieces)}`;
     }
     
     /**
@@ -36,7 +79,41 @@ class ChessAI {
      * @return {Object} 最佳移动，格式为 {piece, to}
      */
     getBestMove(pieces, side) {
+        console.time('AI思考时间');
         console.log(`AI开始分析棋局，棋子数量: ${pieces.length}`);
+        
+        const boardHash = this.getBoardHash(pieces);
+        
+        // 尝试从缓存获取移动
+        if (CACHE_ENABLED && this.moveCache.has(boardHash)) {
+            const cachedMove = this.moveCache.get(boardHash);
+            
+            // 验证缓存的移动是否仍然有效
+            const isValid = pieces.some(p => 
+                p.type === cachedMove.piece.type && 
+                p.side === cachedMove.piece.side && 
+                p.position[0] === cachedMove.piece.position[0] && 
+                p.position[1] === cachedMove.piece.position[1]
+            );
+            
+            if (isValid) {
+                const actualPiece = pieces.find(p => 
+                    p.type === cachedMove.piece.type && 
+                    p.side === cachedMove.piece.side && 
+                    p.position[0] === cachedMove.piece.position[0] && 
+                    p.position[1] === cachedMove.piece.position[1]
+                );
+                
+                if (actualPiece) {
+                    console.log(`从缓存中获取最佳移动`);
+                    console.timeEnd('AI思考时间');
+                    return {
+                        piece: actualPiece,
+                        to: cachedMove.to
+                    };
+                }
+            }
+        }
         
         // 找出所有可能的移动
         const allMoves = this.getAllPossibleMoves(pieces, side);
@@ -44,7 +121,15 @@ class ChessAI {
         
         if (allMoves.length === 0) {
             console.log("AI无子可走");
+            console.timeEnd('AI思考时间');
             return null; // 无子可走
+        }
+        
+        // 如果只有一个可能的移动，直接返回
+        if (allMoves.length === 1) {
+            console.log("只有一个可能的移动，直接返回");
+            console.timeEnd('AI思考时间');
+            return allMoves[0];
         }
         
         // 使用极小极大算法评估每一个移动
@@ -64,8 +149,6 @@ class ChessAI {
                 side === SIDES.RED ? SIDES.BLACK : SIDES.RED
             );
             
-            console.log(`移动评分: ${move.piece.getChar()} 从 ${move.piece.position} 到 ${move.to}: ${score}`);
-            
             // 更新最佳移动
             if (score > bestScore) {
                 bestScore = score;
@@ -78,24 +161,36 @@ class ChessAI {
         
         console.log(`找到 ${bestMoves.length} 个最佳移动，分数: ${bestScore}`);
         
+        let selectedMove = null;
+        
         // 随机选择一个最佳移动（加入随机性）
         if (bestMoves.length > 0) {
             // 根据难度，可能选择次优解
             if (Math.random() < this.difficulty.randomFactor) {
                 // 随机选择一个可能的移动，而不一定是最佳移动
-                const randomMove = allMoves[Math.floor(Math.random() * allMoves.length)];
-                console.log(`选择随机移动: ${randomMove.piece.getChar()} 从 ${randomMove.piece.position} 到 ${randomMove.to}`);
-                return randomMove;
+                selectedMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+                console.log(`选择随机移动`);
             } else {
                 // 在最佳移动中随机选择
-                const bestMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
-                console.log(`选择最佳移动: ${bestMove.piece.getChar()} 从 ${bestMove.piece.position} 到 ${bestMove.to}`);
-                return bestMove;
+                selectedMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                console.log(`选择最佳移动`);
             }
         }
         
-        console.log("AI未找到有效移动");
-        return null;
+        // 缓存这个移动
+        if (CACHE_ENABLED && selectedMove) {
+            this.moveCache.set(boardHash, {
+                piece: {
+                    type: selectedMove.piece.type,
+                    side: selectedMove.piece.side,
+                    position: [...selectedMove.piece.position]
+                },
+                to: [...selectedMove.to]
+            });
+        }
+        
+        console.timeEnd('AI思考时间');
+        return selectedMove;
     }
     
     /**
@@ -105,6 +200,36 @@ class ChessAI {
      * @return {Array} 所有可能移动的数组，每个元素格式为 {piece, to}
      */
     getAllPossibleMoves(pieces, side) {
+        const boardHash = this.getBoardHash(pieces) + '_' + side;
+        
+        // 尝试从缓存获取
+        if (CACHE_ENABLED && this.moveCache.has(boardHash + '_moves')) {
+            const cachedMoves = this.moveCache.get(boardHash + '_moves');
+            
+            // 将缓存数据转换回实际的棋子对象
+            const validMoves = [];
+            for (const move of cachedMoves) {
+                const piece = pieces.find(p => 
+                    p.type === move.pieceType && 
+                    p.side === move.pieceSide && 
+                    p.position[0] === move.from[0] && 
+                    p.position[1] === move.from[1]
+                );
+                
+                if (piece) {
+                    validMoves.push({
+                        piece: piece,
+                        to: move.to
+                    });
+                }
+            }
+            
+            if (validMoves.length > 0) {
+                console.log(`从缓存中获取 ${validMoves.length} 个可能移动`);
+                return validMoves;
+            }
+        }
+        
         const moves = [];
         
         // 遍历所有指定方的棋子
@@ -123,6 +248,18 @@ class ChessAI {
             }
         }
         
+        // 缓存结果 - 以简化的形式存储，不存储完整的棋子对象
+        if (CACHE_ENABLED) {
+            const simplifiedMoves = moves.map(move => ({
+                pieceType: move.piece.type,
+                pieceSide: move.piece.side,
+                from: [...move.piece.position],
+                to: [...move.to]
+            }));
+            
+            this.moveCache.set(boardHash + '_moves', simplifiedMoves);
+        }
+        
         return moves;
     }
     
@@ -136,9 +273,15 @@ class ChessAI {
      * @return {number} 最佳分数
      */
     minimax(pieces, depth, alpha, beta, side) {
-        // 达到搜索深度或游戏结束
-        if (depth === 0 || this.isGameOver(pieces)) {
+        // 检查递归终止条件
+        if (depth <= 0 || this.isGameOver(pieces)) {
             return this.evaluateBoard(pieces, side === SIDES.RED ? SIDES.BLACK : SIDES.RED);
+        }
+        
+        // 尝试从缓存获取
+        const cacheKey = this.getBoardHash(pieces) + `_${depth}_${side}`;
+        if (CACHE_ENABLED && this.evalCache.has(cacheKey)) {
+            return this.evalCache.get(cacheKey);
         }
         
         // 获取所有可能的移动
@@ -146,7 +289,11 @@ class ChessAI {
         
         if (moves.length === 0) {
             // 无子可走，可能是将军或平局
-            return this.evaluateBoard(pieces, side === SIDES.RED ? SIDES.BLACK : SIDES.RED);
+            const score = this.evaluateBoard(pieces, side === SIDES.RED ? SIDES.BLACK : SIDES.RED);
+            if (CACHE_ENABLED) {
+                this.evalCache.set(cacheKey, score);
+            }
+            return score;
         }
         
         let bestScore = -Infinity;
@@ -174,6 +321,11 @@ class ChessAI {
             }
         }
         
+        // 缓存结果
+        if (CACHE_ENABLED) {
+            this.evalCache.set(cacheKey, bestScore);
+        }
+        
         return bestScore;
     }
     
@@ -197,6 +349,12 @@ class ChessAI {
      * @return {number} 评估分数
      */
     evaluateBoard(pieces, side) {
+        // 尝试从缓存获取
+        const cacheKey = this.getBoardHash(pieces) + `_eval_${side}`;
+        if (CACHE_ENABLED && this.evalCache.has(cacheKey)) {
+            return this.evalCache.get(cacheKey);
+        }
+        
         let score = 0;
         
         // 基础分数：棋子价值
@@ -214,7 +372,7 @@ class ChessAI {
             }
         }
         
-        // 棋子机动性加成（可移动位置数量）
+        // 机动性加成（可移动位置数量）
         score += this.getMobilityBonus(pieces, side);
         
         // 将军加成
@@ -224,6 +382,11 @@ class ChessAI {
         
         if (Rules.isChecked(side, pieces)) {
             score -= 50; // 被对方将军，减分
+        }
+        
+        // 缓存结果
+        if (CACHE_ENABLED) {
+            this.evalCache.set(cacheKey, score);
         }
         
         return score;
@@ -280,16 +443,28 @@ class ChessAI {
      * @return {number} 机动性加成分数
      */
     getMobilityBonus(pieces, side) {
+        // 机动性检查在较低深度上可以简化，提高性能
         let myMobility = 0;
         let opponentMobility = 0;
         
+        // 简化：使用快速的固定值而不是实际计算移动数量
+        const mobilityValues = {
+            [PIECE_TYPES.KING]: 4,
+            [PIECE_TYPES.ADVISOR]: 2,
+            [PIECE_TYPES.ELEPHANT]: 4,
+            [PIECE_TYPES.HORSE]: 8,
+            [PIECE_TYPES.CHARIOT]: 10,
+            [PIECE_TYPES.CANNON]: 10,
+            [PIECE_TYPES.PAWN]: 3
+        };
+        
         for (const piece of pieces) {
-            const moves = Rules.getValidMoves(piece, pieces);
+            const baseValue = mobilityValues[piece.type] || 0;
             
             if (piece.side === side) {
-                myMobility += moves.length;
+                myMobility += baseValue;
             } else {
-                opponentMobility += moves.length;
+                opponentMobility += baseValue;
             }
         }
         
